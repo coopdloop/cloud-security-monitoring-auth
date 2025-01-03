@@ -1,0 +1,8 @@
+# docker-compose.prod.yml (production overrides)
+version: '3.8'
+services:
+  app:
+    environment:
+      - AUTH0_DOMAIN=${PROD_AUTH0_DOMAIN}
+    deploy:
+      replicas: 3

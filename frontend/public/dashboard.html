@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Auth Demo</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.3/dist/full.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body>
+  <!-- Main Content (hidden initially) -->
+  <div id="mainContent" class="hidden">
+    <!-- page content -->
+    <div class="mx-auto px-1 py-1">
+
+      <div class="drawer lg:drawer-open">
+        <input id="my-drawer-2" type="checkbox" class="drawer-toggle" />
+        <div class="drawer-content flex flex-col">
+          <!-- Page content here -->
+          <div class="navbar bg-base-100">
+            <div class="flex-none lg:hidden">
+              <label for="my-drawer-2" class="btn btn-square btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                  class="inline-block w-6 h-6 stroke-current">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                  </path>
+                </svg>
+              </label>
+            </div>
+            <div class="flex-1">
+              <a class="btn btn-ghost normal-case text-xl">Auth Demo</a>
+            </div>
+            <div class="flex-none">
+              <div class="dropdown dropdown-end">
+                <label tabindex="0" class="btn btn-ghost btn-circle avatar">
+                  <div class="w-10 rounded-full">
+                    <img id="userAvatar" src="" alt="profile" />
+                  </div>
+                </label>
+                <ul tabindex="0"
+                  class="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52">
+                  <li><a href="/profile.html">Profile Settings</a></li>
+                  <li><a onclick="logout()">Logout</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <!-- User Info Card -->
+              <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                  <h2 class="card-title">User Profile</h2>
+                  <div id="userInfo" class="mt-4"></div>
+                </div>
+              </div>
+
+              <!-- Authentication Details Card -->
+              <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                  <h2 class="card-title">Authentication Details</h2>
+                  <div id="authInfo" class="mt-4"></div>
+                </div>
+              </div>
+
+              <!-- Roles & Permissions Card -->
+              <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                  <h2 class="card-title">Roles & Permissions</h2>
+                  <div id="rolesInfo" class="mt-4"></div>
+                </div>
+              </div>
+
+              <!-- Security Settings Card -->
+              <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                  <h2 class="card-title">Security Settings</h2>
+                  <div id="securityInfo" class="mt-4">
+                    <div class="form-control">
+                      <label class="label cursor-pointer">
+                        <span class="label-text">Multi-Factor Authentication</span>
+                        <input type="checkbox" id="mfaToggle" class="toggle toggle-primary" />
+                      </label>
+                    </div>
+                    <div class="mt-4">
+                      <button class="btn btn-primary" onclick="goToSecuritySettings()">
+                        Setup Passwordless Login
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="drawer-side">
+          <label for="my-drawer-2" class="drawer-overlay"></label>
+          <ul class="menu p-4 w-80 min-h-full bg-base-200 text-base-content">
+            <li><a href="/dashboard.html" class="active">Dashboard</a></li>
+            <li><a href="/profile.html">Profile Settings</a></li>
+            <li><a href="/security.html">Security Settings</a></li>
+            <li><a href="/users.html">User management</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unauthorized Screen (hidden initially) -->
+  <div id="unauthorizedScreen" class="hidden fixed inset-0 bg-white z-50 flex items-center justify-center">
+    <div class="text-center">
+      <h2 class="text-2xl font-bold mb-4">Unauthorized Access</h2>
+      <p class="mb-4">Please log in to access security settings.</p>
+      <button onclick="window.location.href='/'" class="bg-blue-500 text-white px-4 py-2 rounded">
+        Go to Login
+      </button>
+    </div>
+  </div>
+
+  <script src="/js/auth-state.js"></script>
+  <script src="/js/dashboard.js"></script>
+</body>
+
+</html>

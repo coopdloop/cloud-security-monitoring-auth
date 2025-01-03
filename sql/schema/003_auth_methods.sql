@@ -1,0 +1,4 @@
+-- sql/schema/003_auth_methods.sql
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS passwordless_enabled BOOLEAN DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN DEFAULT FALSE;

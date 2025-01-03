@@ -1,0 +1,112 @@
+<!-- frontend/public/profile.html -->
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile - Auth Demo</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.3/dist/full.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body>
+  <!-- Main Content (hidden initially) -->
+  <div id="mainContent" class="hidden">
+    <!-- page content -->
+    <div class="mx-auto px-1 py-1">
+      <div class="drawer lg:drawer-open">
+        <input id="my-drawer-2" type="checkbox" class="drawer-toggle" />
+        <div class="drawer-content flex flex-col">
+          <!-- Navbar -->
+          <div class="navbar bg-base-100">
+            <div class="flex-none lg:hidden">
+              <label for="my-drawer-2" class="btn btn-square btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-6 h-6 stroke-current">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                  </path>
+                </svg>
+              </label>
+            </div>
+            <div class="flex-1">
+              <a class="btn btn-ghost normal-case text-xl">Profile Settings</a>
+            </div>
+            <div class="flex-none">
+              <div class="dropdown dropdown-end">
+                <label tabindex="0" class="btn btn-ghost btn-circle avatar">
+                  <div class="w-10 rounded-full">
+                    <img id="userAvatar" src="" alt="profile" />
+                  </div>
+                </label>
+                <ul tabindex="0"
+                  class="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52">
+                  <li><a onclick="logout()">Logout</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main Content -->
+          <div class="p-6">
+            <div class="max-w-2xl mx-auto">
+              <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                  <h2 class="card-title mb-4">Edit Profile</h2>
+                  <form id="profileForm" class="space-y-4">
+                    <div class="form-control">
+                      <label class="label">
+                        <span class="label-text">Display Name</span>
+                      </label>
+                      <input type="text" id="displayName" class="input input-bordered" />
+                    </div>
+
+                    <div class="form-control">
+                      <label class="label">
+                        <span class="label-text">Email</span>
+                      </label>
+                      <input type="email" id="email" class="input input-bordered" disabled />
+                    </div>
+
+                    <div class="form-control">
+                      <label class="label">
+                        <span class="label-text">Profile Picture</span>
+                      </label>
+                      <div class="flex items-center space-x-4">
+                        <div class="avatar">
+                          <div class="w-24 rounded-full">
+                            <img id="profilePicture" src="" alt="Profile" />
+                          </div>
+                        </div>
+                        <input type="file" id="pictureUpload" class="file-input file-input-bordered" accept="image/*" />
+                      </div>
+                    </div>
+
+                    <div class="form-control mt-6">
+                      <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="drawer-side">
+          <label for="my-drawer-2" class="drawer-overlay"></label>
+          <ul class="menu p-4 w-80 min-h-full bg-base-200 text-base-content">
+            <li><a href="/dashboard.html">Dashboard</a></li>
+            <li><a href="/profile.html" class="active">Profile Settings</a></li>
+            <li><a href="/security.html">Security Settings</a></li>
+            <li><a href="/users.html">User management</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <script src="/js/auth-state.js"></script>
+  <script src="/js/profile.js"></script>
+</body>
+
+</html>

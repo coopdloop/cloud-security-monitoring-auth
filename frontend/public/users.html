@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Management - Auth Demo</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@3.9.3/dist/full.css" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body>
+  <!-- Loading Screen -->
+  <div id="loadingScreen" class="fixed inset-0 bg-white z-50 flex items-center justify-center">
+    <div class="text-center">
+      <div class="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      <p class="mt-4 text-xl">Loading users...</p>
+    </div>
+  </div>
+
+  <!-- Main Content (hidden initially) -->
+  <div id="mainContent" class="hidden">
+    <div class="mx-auto px-1 py-1">
+      <div class="drawer lg:drawer-open">
+        <input id="my-drawer-2" type="checkbox" class="drawer-toggle" />
+        <div class="drawer-content flex flex-col">
+          <!-- Navbar -->
+          <div class="navbar bg-base-100">
+            <div class="flex-none lg:hidden">
+              <label for="my-drawer-2" class="btn btn-square btn-ghost">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="w-6 h-6 stroke-current">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16">
+                  </path>
+                </svg>
+              </label>
+            </div>
+            <div class="flex-1">
+              <a class="btn btn-ghost normal-case text-xl">User Management</a>
+            </div>
+            <div class="flex-none">
+              <div class="dropdown dropdown-end">
+                <label tabindex="0" class="btn btn-ghost btn-circle avatar">
+                  <div class="w-10 rounded-full">
+                    <img id="userAvatar" src="" alt="profile" />
+                  </div>
+                </label>
+                <ul tabindex="0"
+                  class="mt-3 z-[1] p-2 shadow menu menu-sm dropdown-content bg-base-100 rounded-box w-52">
+                  <li><a onclick="logout()">Logout</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main Content -->
+          <div class="p-6">
+            <div class="max-w-6xl mx-auto">
+              <!-- Users Card -->
+              <div class="card bg-base-100 shadow-xl">
+                <div class="card-body">
+                  <div class="flex justify-between items-center mb-6">
+                    <h2 class="card-title">Users</h2>
+                    <button class="btn btn-primary" onclick="showCreateUserModal()">
+                      Add User
+                    </button>
+                  </div>
+
+                  <div class="overflow-x-auto">
+                    <table class="table w-full">
+                      <thead>
+                        <tr>
+                          <th>User</th>
+                          <th>Email</th>
+                          <th>Roles</th>
+                          <th class="text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="usersTableBody">
+                        <!-- Users will be inserted here -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="card bg-base-100 shadow-xl mt-6">
+              <div class="card-body">
+                <h2 class="card-title">User Claims</h2>
+                <div id="userClaimsContainer">
+                  <!-- Claims will be dynamically rendered here -->
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="drawer-side">
+          <label for="my-drawer-2" class="drawer-overlay"></label>
+          <ul class="menu p-4 w-80 min-h-full bg-base-200 text-base-content">
+            <li><a href="/dashboard.html">Dashboard</a></li>
+            <li><a href="/profile.html">Profile Settings</a></li>
+            <li><a href="/security.html">Security Settings</a></li>
+            <li><a href="/users.html" class="active">User Management</a></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Edit Roles Modal -->
+  <div id="editRolesModal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg mb-4">Edit User Roles</h3>
+      <div id="rolesCheckboxes" class="space-y-2 mb-4">
+        <!-- Role checkboxes will be inserted here -->
+      </div>
+      <div class="modal-action">
+        <button onclick="closeEditModal()" class="btn">Cancel</button>
+        <button onclick="saveUserRoles()" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create User Modal -->
+  <div id="createUserModal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg mb-4">Create New User</h3>
+      <form id="createUserForm" class="space-y-4">
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Name</span>
+          </label>
+          <input type="text" id="newUserName" class="input input-bordered" required />
+        </div>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Email</span>
+          </label>
+          <input type="email" id="newUserEmail" class="input input-bordered" required />
+        </div>
+        <div class="form-control">
+          <label class="label">
+            <span class="label-text">Roles</span>
+          </label>
+          <div id="createUserRoles" class="space-y-2">
+            <!-- Roles will be dynamically inserted here -->
+          </div>
+        </div>
+      </form>
+      <div class="modal-action">
+        <button onclick="closeCreateUserModal()" class="btn">Cancel</button>
+        <button onclick="createUser()" class="btn btn-primary">Create User</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unauthorized Screen -->
+  <div id="unauthorizedScreen" class="hidden fixed inset-0 bg-white z-50 flex items-center justify-center">
+    <div class="text-center">
+      <h2 class="text-2xl font-bold mb-4">Unauthorized Access</h2>
+      <p class="mb-4">Please log in to access user management.</p>
+      <button onclick="window.location.href='/'" class="btn btn-primary">
+        Go to Login
+      </button>
+    </div>
+  </div>
+
+  <script src="/js/auth-state.js"></script>
+  <script src="/js/users.js"></script>
+</body>
+
+</html>

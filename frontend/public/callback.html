@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Processing Auth...</title>
+  <script>
+
+    async function handleCallback() {
+      console.log('Starting callback handler...');
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+
+      try {
+        console.log('Exchanging code for tokens...');
+        const response = await fetch(`/callback?code=${code}`, {
+          method: 'GET',
+          headers: {
+            'Accept': 'application/json',
+          }
+        });
+
+        if (!response.ok) {
+          console.error('Response not OK:', response.status);
+          throw new Error('Failed to exchange code');
+        }
+
+        // Log raw response
+        const rawResponse = await response.text();
+        console.log('Raw response:', rawResponse);
+
+        // Try to parse as JSON
+        let tokens;
+        try {
+          tokens = JSON.parse(rawResponse);
+          console.log('Parsed tokens:', {
+            accessTokenPreview: tokens.access_token?.substring(0, 20),
+            idTokenPreview: tokens.id_token?.substring(0, 20),
+            tokenType: tokens.token_type,
+            expiresIn: tokens.expires_in
+          });
+        } catch (parseError) {
+          console.error('Failed to parse response as JSON:', parseError);
+          throw parseError;
+        }
+
+        // Store tokens
+        localStorage.setItem('access_token', tokens.access_token);
+        localStorage.setItem('id_token', tokens.id_token);
+
+        console.log('Redirecting to dashboard...');
+        window.location.href = '/dashboard.html';
+      } catch (error) {
+        console.error('Error in callback:', error);
+        window.location.href = '/';
+      }
+    }
+    // Execute when page loads
+    handleCallback();
+  </script>
+</head>
+
+<body>
+  <div style="text-align: center; margin-top: 50px;">
+    <h2>Processing your login...</h2>
+    <p>Please wait while we complete your authentication.</p>
+    <pre id="debug" style="text-align: left; margin-top: 20px; display: none;"></pre>
+  </div>
+</body>
+
+</html>

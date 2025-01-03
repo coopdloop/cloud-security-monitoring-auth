@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>Swagger UI</title>
+  <link rel="stylesheet" type="text/css" href="https://unpkg.com/swagger-ui-dist@latest/swagger-ui.css">
+  <style>
+    body {
+      margin: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@latest/swagger-ui-bundle.js"></script>
+  <script src="https://unpkg.com/swagger-ui-dist@latest/swagger-ui-standalone-preset.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/js-yaml/4.1.0/js-yaml.min.js"></script>
+  <script>
+    window.onload = function () {
+      fetch('/openapi.yaml')
+        .then(response => response.text())
+        .then(yamlText => {
+          try {
+            // Use js-yaml to parse
+            const spec = jsyaml.load(yamlText);
+
+            window.ui = SwaggerUIBundle({
+              spec: spec,
+              dom_id: '#swagger-ui',
+              presets: [
+                SwaggerUIBundle.presets.apis,
+                SwaggerUIStandalonePreset
+              ],
+              layout: "StandaloneLayout"
+            });
+          } catch (parseError) {
+            console.error('Error parsing YAML:', parseError);
+          }
+        })
+        .catch(error => {
+          console.error('Error loading OpenAPI specification:', error);
+        });
+    }
+  </script>
+</body>
+
+</html>

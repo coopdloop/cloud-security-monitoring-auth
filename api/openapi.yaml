@@ -1,0 +1,294 @@
+openapi: 3.0.0
+info:
+  title: Security API
+  version: 1.0.0
+  description: API for managing security features including MFA and sessions
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+      required:
+        - id
+        - name
+        - email
+    CreateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+      required:
+        - name
+        - email
+
+    Session:
+      type: object
+      required:
+        - id
+        - device
+        - last_active
+      properties:
+        id:
+          type: string
+          format: uuid
+        device:
+          type: string
+        location:
+          type: string
+        last_active:
+          type: string
+          format: date-time
+
+    SecurityLog:
+      type: object
+      required:
+        - timestamp
+        - event
+        - type
+        - ip_address
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        event:
+          type: string
+        type:
+          type: string
+          enum: [login, logout, mfa_enabled, mfa_disabled, password_changed, suspicious_activity]
+        ip_address:
+          type: string
+
+    MFASetupResponse:
+      type: object
+      required:
+        - qr_code
+      properties:
+        qr_code:
+          type: string
+
+    MFAVerifyRequest:
+      type: object
+      required:
+        - code
+      properties:
+        code:
+          type: string
+          minLength: 6
+          maxLength: 6
+
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+
+    CustomClaim:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+          description: The name of the custom claim
+          example: "department"
+        value:
+          type: object
+          description: JSON object representing the claim value
+          example:
+            name: "Engineering"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - BearerAuth: []
+
+paths:
+  /api/users:
+    get:
+      summary: List users
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      summary: Create user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /api/sessions:
+    get:
+      summary: List active sessions
+      operationId: getSessions
+      responses:
+        '200':
+          description: List of active sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/sessions/{sessionId}:
+    delete:
+      summary: Revoke a session
+      operationId: revokeSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session revoked successfully
+        '401':
+          description: Unauthorized
+        '404':
+          description: Session not found
+
+  /api/security-log:
+    get:
+      summary: Get security event log
+      operationId: getSecurityLog
+      responses:
+        '200':
+          description: List of security events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SecurityLog'
+        '401':
+          description: Unauthorized
+
+  /api/setup-mfa:
+    post:
+      summary: Setup MFA
+      operationId: setupMFA
+      responses:
+        '200':
+          description: MFA setup initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MFASetupResponse'
+        '401':
+          description: Unauthorized
+
+  /api/verify-mfa:
+    post:
+      summary: Verify MFA setup
+      operationId: verifyMFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MFAVerifyRequest'
+      responses:
+        '200':
+          description: MFA verified successfully
+        '400':
+          description: Invalid verification code
+        '401':
+          description: Unauthorized
+
+  /api/disable-mfa:
+    post:
+      summary: Disable MFA
+      operationId: disableMFA
+      responses:
+        '200':
+          description: MFA disabled successfully
+        '401':
+          description: Unauthorized
+
+  /api/user/claims:
+    get:
+      summary: Retrieve user's custom claims
+      operationId: getUserClaims
+      responses:
+        '200':
+          description: Successfully retrieved user claims
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CustomClaim'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update user's custom claims
+      operationId: updateUserClaims
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/CustomClaim'
+      responses:
+        '200':
+          description: Claims updated successfully
+        '400':
+          description: Invalid claim data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'

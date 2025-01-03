@@ -1,0 +1,84 @@
+{
+    "widgets": [
+        {
+            "height": 6,
+            "width": 12,
+            "y": 0,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                    [ "SecurityEvents", "SuspiciousLoginCount", { "stat": "Sum", "period": 300 } ]
+                ],
+                "region": "us-east-1",
+                "title": "Suspicious Login Attempts (5 min)"
+            }
+        },
+        {
+            "height": 6,
+            "width": 12,
+            "y": 0,
+            "x": 12,
+            "type": "metric",
+            "properties": {
+                "view": "timeSeries",
+                "stacked": false,
+                "metrics": [
+                    [ "SecurityEvents", "TotalLoginAttempts", { "stat": "Sum", "period": 300 } ],
+                    [ "SecurityEvents", "SuccessfulLogins", { "stat": "Sum", "period": 300 } ],
+                    [ "SecurityEvents", "FailedLogins", { "stat": "Sum", "period": 300 } ]
+                ],
+                "region": "us-east-1",
+                "title": "Login Activity Overview"
+            }
+        },
+        {
+            "height": 6,
+            "width": 8,
+            "y": 6,
+            "x": 0,
+            "type": "metric",
+            "properties": {
+                "view": "pie",
+                "metrics": [
+                    [ "SecurityEvents", "MFAEnabled", { "stat": "Average", "period": 3600 } ],
+                    [ "SecurityEvents", "PasswordlessEnabled", { "stat": "Average", "period": 3600 } ]
+                ],
+                "region": "us-east-1",
+                "title": "Security Features Adoption"
+            }
+        },
+        {
+            "height": 6,
+            "width": 8,
+            "y": 6,
+            "x": 8,
+            "type": "metric",
+            "properties": {
+                "view": "bar",
+                "metrics": [
+                    [ "SecurityEvents", "SessionRevocations", { "stat": "Sum", "period": 3600 } ]
+                ],
+                "region": "us-east-1",
+                "title": "Session Revocations (Hourly)"
+            }
+        },
+        {
+            "height": 6,
+            "width": 8,
+            "y": 6,
+            "x": 16,
+            "type": "metric",
+            "properties": {
+                "view": "timeSeries",
+                "metrics": [
+                    [ "SecurityEvents", "ActiveSessions", { "stat": "Average", "period": 300 } ]
+                ],
+                "region": "us-east-1",
+                "title": "Active Sessions"
+            }
+        }
+    ]
+}

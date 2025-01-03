@@ -1,0 +1,93 @@
+# Artifacts
+uploads/
+
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
+.env
+default.env
+dev.env
+.envrc
+
+# Blog writing
+blog*
+
+# Build directory
+build/
+dist/
+
+# Backup files
+*.bak
+*~
+
+# Local development configs
+config.local.yml
+config.local.yaml
+
+# Sensitive information
+secrets/
+*.pem
+id_rsa*
+
+# Compiled binary
+main
+server
+
+# Temp files
+tmp/
+temp/
+
+# Database files (if applicable)
+*.db
+
+# Node modules (if you have any frontend)
+node_modules/
+
+# SQLite databases
+*.sqlite3
+
+# Terraform files
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+# ignore this for now
+*providers.tf*
+
+# Logs
+*.log
+
+# Mac system files
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE directories
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# zips
+*.zip
