@@ -356,13 +356,6 @@ resource "aws_iam_role" "ecs_execution_role" {
         Principal = {
           Service = "ecs-tasks.amazonaws.com"
         }
-      },
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          AWS = aws_iam_role.github_actions_role.arn
-        }
       }
     ]
   })
