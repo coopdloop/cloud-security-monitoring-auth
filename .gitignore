@@ -50,9 +50,6 @@ secrets/
 *.pem
 id_rsa*
 
-# Compiled binary
-main
-server
 
 # Temp files
 tmp/
