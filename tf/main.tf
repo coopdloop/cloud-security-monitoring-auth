@@ -149,8 +149,13 @@ resource "aws_subnet" "public" {
 }
 
 # ECS Cluster
-resource "aws_ecs_cluster" "main" {
+resource "aws_ecs_cluster" "qa_backend_cluster" {
   name = "qa-backend-cluster"
+
+  setting {
+    name  = "containerInsights"
+    value = "enabled"
+  }
 }
 
 # ECR Repository
@@ -179,34 +184,76 @@ resource "aws_security_group" "ecs_tasks" {
   }
 }
 
-# ECS Task Definition
-resource "aws_ecs_task_definition" "main" {
+# Task Definition
+resource "aws_ecs_task_definition" "backend_task" {
   family                   = "qa-backend-task"
-  network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
   cpu                      = 256
   memory                   = 512
   execution_role_arn       = aws_iam_role.ecs_execution_role.arn
+  task_role_arn            = aws_iam_role.ecs_task_role.arn
 
   container_definitions = jsonencode([{
-    name  = "qa-backend-container"
+    name  = "backend"
     image = "${aws_ecr_repository.main.repository_url}:latest"
     portMappings = [{
       containerPort = 3000
       hostPort      = 3000
     }]
     environment = [
+      { name = "ENV", value = "qa" },
+      { name = "AUTH0_DOMAIN", value = var.auth0_domain },
+      { name = "AUTH0_CLIENT_ID", value = var.auth0_client_id }
+    ]
+    secrets = [
       {
-        name  = "ENV"
-        value = "qa"
+        name      = "AUTH0_CLIENT_SECRET"
+        valueFrom = aws_secretsmanager_secret.auth0_client_secret.arn
+      },
+      {
+        name      = "DATABASE_URL"
+        valueFrom = aws_secretsmanager_secret.database_url.arn
       }
     ]
   }])
 }
 
+# ECS Service
+resource "aws_ecs_service" "backend_service" {
+  name            = "qa-backend-service"
+  cluster         = aws_ecs_cluster.qa_backend_cluster.id
+  task_definition = aws_ecs_task_definition.backend_task.arn
+  launch_type     = "FARGATE"
+
+  desired_count = 1
+
+  network_configuration {
+    subnets          = aws_subnet.public[*].id
+    security_groups  = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = true
+  }
+
+  # Optional: Load balancer configuration
+  # load_balancer {
+  #   target_group_arn = aws_lb_target_group.backend.arn
+  #   container_name   = "backend"
+  #   container_port   = 3000
+  # }
+}
+
+# Secrets Management
+resource "aws_secretsmanager_secret" "auth0_client_secret" {
+  name = "qa-auth0-client-secret"
+}
+
+resource "aws_secretsmanager_secret" "database_url" {
+  name = "qa-database-url"
+}
+
 # IAM Roles for ECS
 resource "aws_iam_role" "ecs_execution_role" {
-  name = "qa-backend-ecs-execution-role"
+  name = "qa-ecs-execution-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -229,17 +276,26 @@ resource "aws_iam_role" "ecs_execution_role" {
   })
 }
 
-# Deployment Script
-resource "null_resource" "docker_packaging" {
-  provisioner "local-exec" {
-    command = <<EOF
-      aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin ${aws_ecr_repository.main.repository_url}
-      docker build -t ${aws_ecr_repository.main.repository_url}:latest .
-      docker push ${aws_ecr_repository.main.repository_url}:latest
-    EOF
-  }
+resource "aws_iam_role_policy_attachment" "ecs_execution_role_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
+  role       = aws_iam_role.ecs_execution_role.name
+}
 
-  depends_on = [aws_ecr_repository.main]
+resource "aws_iam_role" "ecs_task_role" {
+  name = "qa-ecs-task-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ecs-tasks.amazonaws.com"
+        }
+      }
+    ]
+  })
 }
 
 data "aws_iam_openid_connect_provider" "github_actions" {

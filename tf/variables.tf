@@ -61,6 +61,16 @@ variable "app_port" {
   default     = 3000
 }
 
+variable "auth0_domain" {
+  description = "domain"
+  type        = string
+}
+
+variable "auth0_client_id" {
+  description = "client id"
+  type        = string
+}
+
 # Subnet Configuration
 variable "availability_zones" {
   description = "List of availability zones"
