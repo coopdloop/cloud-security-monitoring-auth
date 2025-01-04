@@ -2,55 +2,39 @@ provider "aws" {
   region = var.aws_region # Choose your preferred region
 }
 
+
+##### IAM
+
 # Fetch SSO Instances Differently
-data "aws_ssoadmin_instances" "default" {}
+data "aws_ssoadmin_instances" "identity_center" {}
 
-# Direct IAM Role
-resource "aws_iam_role" "qa_read_only" {
-  name = "QA-ReadOnly-Access"
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          AWS = "arn:aws:iam::${var.aws_account_id}:root"
-        }
-      }
-    ]
-  })
+output "identity_center_arn" {
+  value = try(tolist(data.aws_ssoadmin_instances.identity_center.arns)[0], "No Identity Center instance found")
 }
 
-resource "aws_iam_role_policy_attachment" "qa_read_only" {
-  role       = aws_iam_role.qa_read_only.name
-  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+output "identity_store_id" {
+  value = try(tolist(data.aws_ssoadmin_instances.identity_center.identity_store_ids)[0], "No Identity Store ID found")
 }
 
+# Create a Permission Set for QA Users
+resource "aws_ssoadmin_permission_set" "qa_user" {
+  name             = "QA-User-Access"
+  description      = "Permission set for QA users"
+  instance_arn     = tolist(data.aws_ssoadmin_instances.identity_center.arns)[0]
+  session_duration = "PT1H"
 
-resource "aws_iam_role" "qa_ecs_access" {
-  name = "QA-ECS-Access"
+  provisioner "local-exec" {
+    command = "sleep 10" # Add a small delay to ensure AWS processes the request
+  }
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          AWS = "arn:aws:iam::${var.aws_account_id}:root"
-        }
-      }
-    ]
-  })
+  tags = {
+    Environment = "qa"
+  }
 }
 
-resource "aws_iam_role_policy" "qa_ecs_access_policy" {
-  name = "QA-ECS-Access-Policy"
-  role = aws_iam_role.qa_ecs_access.id
-
-  policy = jsonencode({
+# Attach inline policy directly without separate attachment
+resource "aws_ssoadmin_permission_set_inline_policy" "qa_permissions" {
+  inline_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
@@ -63,13 +47,49 @@ resource "aws_iam_role_policy" "qa_ecs_access_policy" {
           "ecs:ListTasks",
           "ecs:DescribeTasks",
           "logs:GetLogEvents",
-          "logs:DescribeLogGroups"
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "iam:GetAccountSummary",
+          "iam:ListUsers"
         ]
         Resource = "*"
       }
     ]
   })
+  instance_arn       = tolist(data.aws_ssoadmin_instances.identity_center.arns)[0]
+  permission_set_arn = aws_ssoadmin_permission_set.qa_user.arn
 }
+
+# Create QA Users group in Identity Store
+resource "aws_identitystore_group" "qa_users" {
+  identity_store_id = tolist(data.aws_ssoadmin_instances.identity_center.identity_store_ids)[0]
+  display_name      = "QA-Users"
+  description       = "QA team members"
+}
+
+# Assign permission set to the account
+resource "aws_ssoadmin_account_assignment" "qa_assignment" {
+  instance_arn       = tolist(data.aws_ssoadmin_instances.identity_center.arns)[0]
+  permission_set_arn = aws_ssoadmin_permission_set.qa_user.arn
+
+  principal_id   = aws_identitystore_group.qa_users.group_id
+  principal_type = "GROUP"
+
+  target_id   = var.aws_account_id
+  target_type = "AWS_ACCOUNT"
+}
+
+##### IAM
+
+
+#### Auth0 machine - machine
+
 
 # Get current account details
 data "aws_caller_identity" "current" {}
@@ -105,6 +125,11 @@ resource "auth0_trigger_actions" "login_flow" {
     display_name = auth0_action.qa_access_control.name
   }
 }
+
+#### Auth0 machine - machine
+
+
+#### VPC, Routes, networking
 
 # VPC Configuration
 resource "aws_vpc" "main" {
@@ -194,6 +219,10 @@ resource "aws_security_group" "vpc_endpoint_sg" {
   }
 }
 
+
+#### VPC, Routes, networking
+
+
 # ECS Task IAM Role Updates
 resource "aws_iam_role_policy" "secrets_access" {
   name = "ecs-secrets-access"
@@ -276,6 +305,76 @@ resource "aws_security_group" "ecs_tasks" {
   }
 }
 
+
+##### ALB
+
+# Public ALB
+resource "aws_lb" "qa" {
+  name               = "qa-backend-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.alb.id]
+  subnets            = aws_subnet.public[*].id
+
+  tags = {
+    Environment = "qa"
+  }
+}
+
+# ALB Security Group
+resource "aws_security_group" "alb" {
+  name        = "qa-alb-sg"
+  description = "Security group for QA ALB"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# HTTP Listener
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.qa.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.qa.arn
+  }
+}
+
+# Target Group
+resource "aws_lb_target_group" "qa" {
+  name        = "qa-backend-tg"
+  port        = 3000
+  protocol    = "HTTP"
+  vpc_id      = aws_vpc.main.id
+  target_type = "ip"
+
+  health_check {
+    path                = "/health"
+    healthy_threshold   = 2
+    unhealthy_threshold = 10
+    timeout             = 5
+    interval            = 30
+  }
+}
+
+
+##### ALB
+
+
 # RDS PostgreSQL Database
 resource "aws_db_subnet_group" "qa_db_subnet_group" {
   name       = "qa-db-subnet-group"
@@ -299,6 +398,27 @@ resource "aws_db_instance" "qa_database" {
   vpc_security_group_ids = [aws_security_group.ecs_tasks.id]
 }
 
+# ECS Service
+resource "aws_ecs_service" "backend_service" {
+  name            = "qa-backend-service"
+  cluster         = aws_ecs_cluster.qa_backend_cluster.id
+  task_definition = aws_ecs_task_definition.backend_task.arn
+  launch_type     = "FARGATE"
+
+  desired_count = 1
+
+  network_configuration {
+    subnets          = aws_subnet.public[*].id
+    security_groups  = [aws_security_group.ecs_tasks.id]
+    assign_public_ip = true
+  }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.qa.arn
+    container_name   = "backend"
+    container_port   = 3000
+  }
+}
 
 # Task Definition
 resource "aws_ecs_task_definition" "backend_task" {
@@ -321,7 +441,9 @@ resource "aws_ecs_task_definition" "backend_task" {
       { name = "ENV", value = "qa" },
       { name = "DATABASE_URL", value = "postgres://${var.db_username}:${var.db_password}@${aws_db_instance.qa_database.endpoint}/myapp" },
       { name = "AUTH0_DOMAIN", value = var.auth0_domain },
-      { name = "AUTH0_CLIENT_ID", value = var.auth0_client_id }
+      { name = "AUTH0_CLIENT_ID", value = var.auth0_client_id },
+      { name = "AUTH0_CALLBACK_URL", value = "http://${aws_lb.qa.dns_name}/callback" }
+
     ]
     # Secrets configuration
     secrets = [
@@ -337,36 +459,13 @@ resource "aws_ecs_task_definition" "backend_task" {
   }])
 }
 
-# ECS Service
-resource "aws_ecs_service" "backend_service" {
-  name            = "qa-backend-service"
-  cluster         = aws_ecs_cluster.qa_backend_cluster.id
-  task_definition = aws_ecs_task_definition.backend_task.arn
-  launch_type     = "FARGATE"
-
-  desired_count = 1
-
-  network_configuration {
-    subnets          = aws_subnet.public[*].id
-    security_groups  = [aws_security_group.ecs_tasks.id]
-    assign_public_ip = true
-  }
-
-  # Optional: Load balancer configuration
-  # load_balancer {
-  #   target_group_arn = aws_lb_target_group.backend.arn
-  #   container_name   = "backend"
-  #   container_port   = 3000
-  # }
-}
-
 # Secrets Management
 resource "aws_secretsmanager_secret" "auth0_client_secret_secret" {
-  name = "qa-auth0-client-secret-secret"
+  name = "qa-auth0-client-secret-sm"
 }
 
 resource "aws_secretsmanager_secret" "database_url_secret" {
-  name = "qa-database-url-secret"
+  name = "qa-database-url-sm"
 }
 
 # Secret version for Auth0 Client Secret
@@ -381,7 +480,7 @@ resource "aws_secretsmanager_secret_version" "auth0_client_secret" {
 resource "aws_secretsmanager_secret_version" "database_credentials" {
   secret_id = aws_secretsmanager_secret.database_url_secret.id
   secret_string = jsonencode({
-    DB_CREDENTIALS = var.db_password  # or whatever credential you want to store
+    DB_CREDENTIALS = var.db_password # or whatever credential you want to store
   })
 }
 
@@ -610,4 +709,6 @@ output "github_actions_role_arn" {
   value = aws_iam_role.github_actions_role.arn
 }
 
-
+output "qa_url" {
+  value = "http://${aws_lb.qa.dns_name}"
+}
