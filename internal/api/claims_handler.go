@@ -11,10 +11,10 @@ import (
 )
 
 // Custom claim structure
-type CustomClaim struct {
-	Key   string          `json:"key"`
-	Value json.RawMessage `json:"value"`
-}
+// type CustomClaim struct {
+// 	Key   string          `json:"key"`
+// 	Value json.RawMessage `json:"value"`
+// }
 
 // Update user claims handler
 func (s *Server) UpdateUserClaims(w http.ResponseWriter, r *http.Request) {
@@ -41,13 +41,23 @@ func (s *Server) UpdateUserClaims(w http.ResponseWriter, r *http.Request) {
 
 	// Upsert claims
 	for _, claim := range claims {
-		// Convert RawMessage to pqtype.NullRawMessage
-		nullRawMessage := pqtype.NullRawMessage{
-			RawMessage: []byte(claim.Value),
-			Valid:      len(claim.Value) > 0,
+		// Convert map[string]interface{} to JSON bytes
+		valueBytes, err := json.Marshal(claim.Value)
+		if err != nil {
+			log.Error().Err(err).
+				Str("claim_key", claim.Key).
+				Msg("Failed to marshal claim value")
+			http.Error(w, "Failed to process claims", http.StatusInternalServerError)
+			return
 		}
 
-		err := s.db.UpsertCustomClaim(r.Context(), db.UpsertCustomClaimParams{
+		// Create NullRawMessage
+		nullRawMessage := pqtype.NullRawMessage{
+			RawMessage: valueBytes,
+			Valid:      true,
+		}
+
+		err = s.db.UpsertCustomClaim(r.Context(), db.UpsertCustomClaimParams{
 			UserID:     dbUser.ID,
 			ClaimKey:   claim.Key,
 			ClaimValue: nullRawMessage,
@@ -66,34 +76,42 @@ func (s *Server) UpdateUserClaims(w http.ResponseWriter, r *http.Request) {
 
 // Validate custom claims
 func (s *Server) validateCustomClaims(claims []CustomClaim) error {
-	// Implement custom validation logic
-	validClaimKeys := map[string]func(json.RawMessage) error{
-		"department": func(value json.RawMessage) error {
-			var dept struct {
-				Name string `json:"name"`
-			}
-			if err := json.Unmarshal(value, &dept); err != nil {
-				return fmt.Errorf("invalid department format")
-			}
-			if dept.Name == "" {
-				return fmt.Errorf("department name cannot be empty")
+	validClaimKeys := map[string]func(map[string]interface{}) error{
+		"department": func(value map[string]interface{}) error {
+			name, ok := value["name"].(string)
+			if !ok || name == "" {
+				return fmt.Errorf("invalid department format or empty name")
 			}
 			return nil
 		},
-		"permissions": func(value json.RawMessage) error {
-			var perms []string
-			if err := json.Unmarshal(value, &perms); err != nil {
+		"permissions": func(value map[string]interface{}) error {
+			perms, ok := value["permissions"].([]interface{})
+			if !ok {
 				return fmt.Errorf("invalid permissions format")
 			}
+			for _, p := range perms {
+				if _, ok := p.(string); !ok {
+					return fmt.Errorf("invalid permission type")
+				}
+			}
 			return nil
 		},
-		"project_access": func(value json.RawMessage) error {
-			var projects []struct {
-				ID   string `json:"id"`
-				Role string `json:"role"`
-			}
-			if err := json.Unmarshal(value, &projects); err != nil {
+		"project_access": func(value map[string]interface{}) error {
+			projects, ok := value["projects"].([]interface{})
+			if !ok {
 				return fmt.Errorf("invalid project access format")
+			}
+			for _, p := range projects {
+				project, ok := p.(map[string]interface{})
+				if !ok {
+					return fmt.Errorf("invalid project format")
+				}
+				if _, ok := project["id"].(string); !ok {
+					return fmt.Errorf("invalid project ID")
+				}
+				if _, ok := project["role"].(string); !ok {
+					return fmt.Errorf("invalid project role")
+				}
 			}
 			return nil
 		},
@@ -134,11 +152,18 @@ func (s *Server) GetUserClaims(w http.ResponseWriter, r *http.Request) {
 	// Convert to response format
 	claims := make([]CustomClaim, 0)
 	for _, claim := range customClaims {
-		// Only add claims with valid values
 		if claim.ClaimValue.Valid {
+			var value map[string]interface{}
+			if err := json.Unmarshal(claim.ClaimValue.RawMessage, &value); err != nil {
+				log.Error().Err(err).
+					Str("claim_key", claim.ClaimKey).
+					Msg("Failed to unmarshal claim value")
+				continue
+			}
+
 			claims = append(claims, CustomClaim{
 				Key:   claim.ClaimKey,
-				Value: json.RawMessage(claim.ClaimValue.RawMessage),
+				Value: value,
 			})
 		}
 	}

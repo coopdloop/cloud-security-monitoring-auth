@@ -114,7 +114,7 @@ func main() {
 		r.Post("/api/setup-mfa", server.SetupMFA)
 		r.Post("/api/setup-passwordless", server.SetupPasswordless)
 		r.Post("/api/verify-passwordless", server.VerifyPasswordlessOTP)
-		r.Mount("/api", api.HandlerFromMux(server, r))
+		// r.Mount("/api", api.HandlerFromMux(server, r))
 		// Additional security routes under /api
 		r.Get("/api/sessions", server.GetSessions)
 		// r.Delete("/api/sessions/{sessionId}", server.RevokeSession)

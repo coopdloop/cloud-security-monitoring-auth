@@ -34,6 +34,15 @@ type CreateUserRequest struct {
 	Name  string `json:"name"`
 }
 
+// CustomClaim defines model for CustomClaim.
+type CustomClaim struct {
+	// Key The name of the custom claim
+	Key string `json:"key"`
+
+	// Value JSON object representing the claim value
+	Value map[string]interface{} `json:"value"`
+}
+
 // Error defines model for Error.
 type Error struct {
 	Message string `json:"message"`
@@ -75,11 +84,17 @@ type User struct {
 	Name  string `json:"name"`
 }
 
+// UpdateUserClaimsJSONBody defines parameters for UpdateUserClaims.
+type UpdateUserClaimsJSONBody = []CustomClaim
+
+// UpdateUserClaimsJSONRequestBody defines body for UpdateUserClaims for application/json ContentType.
+type UpdateUserClaimsJSONRequestBody = UpdateUserClaimsJSONBody
+
+// PostApiUsersJSONRequestBody defines body for PostApiUsers for application/json ContentType.
+type PostApiUsersJSONRequestBody = CreateUserRequest
+
 // VerifyMFAJSONRequestBody defines body for VerifyMFA for application/json ContentType.
 type VerifyMFAJSONRequestBody = MFAVerifyRequest
-
-// PostUsersJSONRequestBody defines body for PostUsers for application/json ContentType.
-type PostUsersJSONRequestBody = CreateUserRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -98,15 +113,21 @@ type ServerInterface interface {
 	// Setup MFA
 	// (POST /api/setup-mfa)
 	SetupMFA(w http.ResponseWriter, r *http.Request)
+	// Retrieve user's custom claims
+	// (GET /api/user/claims)
+	GetUserClaims(w http.ResponseWriter, r *http.Request)
+	// Update user's custom claims
+	// (PUT /api/user/claims)
+	UpdateUserClaims(w http.ResponseWriter, r *http.Request)
+	// List users
+	// (GET /api/users)
+	GetApiUsers(w http.ResponseWriter, r *http.Request)
+	// Create user
+	// (POST /api/users)
+	PostApiUsers(w http.ResponseWriter, r *http.Request)
 	// Verify MFA setup
 	// (POST /api/verify-mfa)
 	VerifyMFA(w http.ResponseWriter, r *http.Request)
-	// List users
-	// (GET /users)
-	GetUsers(w http.ResponseWriter, r *http.Request)
-	// Create user
-	// (POST /users)
-	PostUsers(w http.ResponseWriter, r *http.Request)
 }
 
 // Unimplemented server implementation that returns http.StatusNotImplemented for each endpoint.
@@ -143,21 +164,33 @@ func (_ Unimplemented) SetupMFA(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
-// Verify MFA setup
-// (POST /api/verify-mfa)
-func (_ Unimplemented) VerifyMFA(w http.ResponseWriter, r *http.Request) {
+// Retrieve user's custom claims
+// (GET /api/user/claims)
+func (_ Unimplemented) GetUserClaims(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Update user's custom claims
+// (PUT /api/user/claims)
+func (_ Unimplemented) UpdateUserClaims(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // List users
-// (GET /users)
-func (_ Unimplemented) GetUsers(w http.ResponseWriter, r *http.Request) {
+// (GET /api/users)
+func (_ Unimplemented) GetApiUsers(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
 // Create user
-// (POST /users)
-func (_ Unimplemented) PostUsers(w http.ResponseWriter, r *http.Request) {
+// (POST /api/users)
+func (_ Unimplemented) PostApiUsers(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// Verify MFA setup
+// (POST /api/verify-mfa)
+func (_ Unimplemented) VerifyMFA(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -266,6 +299,74 @@ func (siw *ServerInterfaceWrapper) SetupMFA(w http.ResponseWriter, r *http.Reque
 	handler.ServeHTTP(w, r.WithContext(ctx))
 }
 
+// GetUserClaims operation middleware
+func (siw *ServerInterfaceWrapper) GetUserClaims(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUserClaims(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// UpdateUserClaims operation middleware
+func (siw *ServerInterfaceWrapper) UpdateUserClaims(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateUserClaims(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// GetApiUsers operation middleware
+func (siw *ServerInterfaceWrapper) GetApiUsers(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetApiUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
+// PostApiUsers operation middleware
+func (siw *ServerInterfaceWrapper) PostApiUsers(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PostApiUsers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r.WithContext(ctx))
+}
+
 // VerifyMFA operation middleware
 func (siw *ServerInterfaceWrapper) VerifyMFA(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -274,40 +375,6 @@ func (siw *ServerInterfaceWrapper) VerifyMFA(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.VerifyMFA(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// GetUsers operation middleware
-func (siw *ServerInterfaceWrapper) GetUsers(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetUsers(w, r)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// PostUsers operation middleware
-func (siw *ServerInterfaceWrapper) PostUsers(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.PostUsers(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -446,13 +513,19 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Post(options.BaseURL+"/api/setup-mfa", wrapper.SetupMFA)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/user/claims", wrapper.GetUserClaims)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/api/user/claims", wrapper.UpdateUserClaims)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/api/users", wrapper.GetApiUsers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/api/users", wrapper.PostApiUsers)
+	})
+	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/api/verify-mfa", wrapper.VerifyMFA)
-	})
-	r.Group(func(r chi.Router) {
-		r.Get(options.BaseURL+"/users", wrapper.GetUsers)
-	})
-	r.Group(func(r chi.Router) {
-		r.Post(options.BaseURL+"/users", wrapper.PostUsers)
 	})
 
 	return r

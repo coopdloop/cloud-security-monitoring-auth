@@ -35,11 +35,6 @@ INSERT INTO users (name, email, auth0_id, picture)
 VALUES ($1, $2, $3, $4)
 RETURNING id, name, email, auth0_id, picture, created_at, updated_at;
 
--- name: DeleteUser :one
--- INSERT INTO users (name, email, auth0_id, picture)
--- VALUES ($1, $2, $3, $4)
--- RETURNING id, name, email, auth0_id, picture, created_at, updated_at;
-
 -- name: UpdateUserProfile :one
 UPDATE users
 SET
