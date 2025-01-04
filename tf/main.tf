@@ -319,7 +319,7 @@ resource "aws_ecs_task_definition" "backend_task" {
     }]
     environment = [
       { name = "ENV", value = "qa" },
-            # { name = "DATABASE_URL", value = "postgres://${var.db_username}:${var.db_password}@${aws_db_instance.qa_database.endpoint}/myapp" },
+      { name = "DATABASE_URL", value = "postgres://${var.db_username}:${var.db_password}@${aws_db_instance.qa_database.endpoint}/myapp" },
       { name = "AUTH0_DOMAIN", value = var.auth0_domain },
       { name = "AUTH0_CLIENT_ID", value = var.auth0_client_id }
     ]
@@ -329,10 +329,10 @@ resource "aws_ecs_task_definition" "backend_task" {
         name      = "AUTH0_CLIENT_SECRET"
         valueFrom = "${aws_secretsmanager_secret.auth0_client_secret_secret.arn}:AUTH0_CLIENT_SECRET::"
       },
-      {
-        name      = "DATABASE_URL"
-        valueFrom = "${aws_secretsmanager_secret.database_url_secret.arn}:DATABASE_URL::"
-      }
+            # {
+            #   name      = "DB_CREDENTIALS"
+            #   valueFrom = "${aws_secretsmanager_secret.database_url_secret.arn}:DB_CREDENTIALS::"
+            # }
     ]
   }])
 }
