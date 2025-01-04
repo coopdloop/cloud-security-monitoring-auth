@@ -5,22 +5,46 @@ provider "aws" {
 # Fetch SSO Instances Differently
 data "aws_ssoadmin_instances" "default" {}
 
-# Check if SSO is enabled
-locals {
-  is_sso_enabled = length(data.aws_ssoadmin_instances.default.arns) > 0
+# # Create Permission Set
+# resource "aws_ssoadmin_permission_set" "qa_read_only" {
+#   # Use the first SSO instance
+#   instance_arn = tolist(data.aws_ssoadmin_instances.default.arns)[0]
+#
+#   name = "QA-ReadOnly-Access"
+#   description = "Read-only access for QA team"
+#
+#   # Session duration
+#   session_duration = "PT2H"  # 2 hours
+# }
+#
+# # Attach Read-Only Policy
+# resource "aws_ssoadmin_managed_policy_attachment" "read_only" {
+#   instance_arn       = tolist(data.aws_ssoadmin_instances.default.arns)[0]
+#   permission_set_arn = aws_ssoadmin_permission_set.qa_read_only.arn
+#   managed_policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+# }
+
+# Direct IAM Role
+resource "aws_iam_role" "qa_read_only" {
+  name = "QA-ReadOnly-Access"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${var.aws_account_id}:root"
+        }
+      }
+    ]
+  })
 }
 
-# Conditional SSO Permission Set
-resource "aws_ssoadmin_permission_set" "qa_read_only" {
-  # Only create if SSO is enabled
-  count = local.is_sso_enabled ? 1 : 0
-
-  name         = "QA-ReadOnly-Access"
-  description  = "Read-only access for QA environment"
-  instance_arn = local.is_sso_enabled ? data.aws_ssoadmin_instances.default.arns[0] : null
-
-  # Define maximum session duration
-  session_duration = "PT2H" # 2-hour max session
+resource "aws_iam_role_policy_attachment" "qa_read_only" {
+  role       = aws_iam_role.qa_read_only.name
+  policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 }
 
 
@@ -168,18 +192,6 @@ resource "null_resource" "docker_packaging" {
   depends_on = [aws_ecr_repository.main]
 }
 
-# IAM OIDC Provider for GitHub Actions
-# resource "aws_iam_openid_connect_provider" "github_actions" {
-#   url             = "https://token.actions.githubusercontent.com"
-#   client_id_list  = ["sts.amazonaws.com"]
-#   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
-#
-#   # Ignore changes to existing provider
-#   lifecycle {
-#     ignore_changes = all
-#   }
-# }
-
 data "aws_iam_openid_connect_provider" "github_actions" {
   url = "https://token.actions.githubusercontent.com"
 }
@@ -206,6 +218,36 @@ resource "aws_iam_role" "github_actions_role" {
             "token.actions.githubusercontent.com:sub" : "repo:${var.github_org}/${var.github_repo}:*"
           }
         }
+      }
+    ]
+  })
+}
+
+# Deployment Policy
+resource "aws_iam_role_policy" "github_actions_policy" {
+  name = "github-actions-deployment-policy"
+  role = aws_iam_role.github_actions_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:PutImage",
+          "ecr:InitiateLayerUpload",
+          "ecr:UploadLayerPart",
+          "ecr:CompleteLayerUpload",
+          "ecr:GetAuthorizationToken",
+          "ecs:UpdateService",
+          "ecs:DescribeServices",
+          "ecs:DescribeTaskDefinition",
+          "ecs:RegisterTaskDefinition"
+        ]
+        Resource = "*"
       }
     ]
   })
