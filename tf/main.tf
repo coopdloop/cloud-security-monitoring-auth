@@ -19,7 +19,7 @@ data "aws_ssoadmin_instances" "default" {}
 #
 # # Attach Read-Only Policy
 # resource "aws_ssoadmin_managed_policy_attachment" "read_only" {
-#   instance_arn       = tolist(data.aws_ssoadmin_instances.default.arns)[0]
+#   instance_arn       = tolist(data.aw.default.arns)[0]
 #   permission_set_arn = aws_ssoadmin_permission_set.qa_read_only.arn
 #   managed_policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
 # }
@@ -45,6 +45,49 @@ resource "aws_iam_role" "qa_read_only" {
 resource "aws_iam_role_policy_attachment" "qa_read_only" {
   role       = aws_iam_role.qa_read_only.name
   policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
+}
+
+
+resource "aws_iam_role" "qa_ecs_access" {
+  name = "QA-ECS-Access"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${var.aws_account_id}:root"
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy" "qa_ecs_access_policy" {
+  name = "QA-ECS-Access-Policy"
+  role = aws_iam_role.qa_ecs_access.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ecs:DescribeServices",
+          "ecs:ListServices",
+          "ecs:DescribeClusters",
+          "ecs:ListClusters",
+          "ecs:ListTasks",
+          "ecs:DescribeTasks",
+          "logs:GetLogEvents",
+          "logs:DescribeLogGroups"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
 }
 
 
@@ -174,6 +217,13 @@ resource "aws_iam_role" "ecs_execution_role" {
         Principal = {
           Service = "ecs-tasks.amazonaws.com"
         }
+      },
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          AWS = aws_iam_role.github_actions_role.arn
+        }
       }
     ]
   })
@@ -267,7 +317,8 @@ resource "aws_iam_role_policy" "github_actions_ecs_policy" {
           "ecs:UpdateService",
           "ecs:DescribeServices",
           "ecs:DescribeTaskDefinition",
-          "ecs:RegisterTaskDefinition"
+          "ecs:RegisterTaskDefinition",
+          "iam:PassRole"
         ]
         Resource = "*"
       },
