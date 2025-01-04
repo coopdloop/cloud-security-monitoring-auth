@@ -16,6 +16,17 @@ variable "environment" {
   default     = "qa"
 }
 
+variable "db_username" {
+  description = "db_user"
+  type        = string
+  default     = "postgres"
+}
+
+variable "db_password" {
+  description = "db_pass"
+  type        = string
+}
+
 # AWS Region Configuration
 variable "aws_region" {
   description = "AWS region for deployment"

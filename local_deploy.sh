@@ -87,12 +87,12 @@ fi
 
 # Local testing
 echo "Running container locally..."
-# docker run --rm -it \
-#     -p 3000:3000 \
-#     --env-file "$ENV_FILE" \
-#     -e ENV=local \
-#     "$ECR_REPOSITORY:$IMAGE_TAG"
-docker compose -f docker-compose.dev.yml up --build
+docker run --rm -it \
+    -p 3000:3000 \
+    --env-file "$ENV_FILE" \
+    -e ENV=local \
+    "$ECR_REPOSITORY:$IMAGE_TAG"
+# docker compose -f docker-compose.dev.yml up --build
 
 # Optional: Deploy to ECS
 read -p "Deploy to ECS? (y/n) " DEPLOY_ECS

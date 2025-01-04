@@ -5,25 +5,6 @@ provider "aws" {
 # Fetch SSO Instances Differently
 data "aws_ssoadmin_instances" "default" {}
 
-# # Create Permission Set
-# resource "aws_ssoadmin_permission_set" "qa_read_only" {
-#   # Use the first SSO instance
-#   instance_arn = tolist(data.aws_ssoadmin_instances.default.arns)[0]
-#
-#   name = "QA-ReadOnly-Access"
-#   description = "Read-only access for QA team"
-#
-#   # Session duration
-#   session_duration = "PT2H"  # 2 hours
-# }
-#
-# # Attach Read-Only Policy
-# resource "aws_ssoadmin_managed_policy_attachment" "read_only" {
-#   instance_arn       = tolist(data.aw.default.arns)[0]
-#   permission_set_arn = aws_ssoadmin_permission_set.qa_read_only.arn
-#   managed_policy_arn = "arn:aws:iam::aws:policy/ReadOnlyAccess"
-# }
-
 # Direct IAM Role
 resource "aws_iam_role" "qa_read_only" {
   name = "QA-ReadOnly-Access"
@@ -90,10 +71,8 @@ resource "aws_iam_role_policy" "qa_ecs_access_policy" {
   })
 }
 
-
 # Get current account details
 data "aws_caller_identity" "current" {}
-
 
 # Update Auth0 Configuration to use Actions
 resource "auth0_action" "qa_access_control" {
@@ -184,12 +163,12 @@ resource "aws_route_table_association" "public" {
 
 # VPC Endpoints for Secrets Manager
 resource "aws_vpc_endpoint" "secretsmanager" {
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
-  vpc_endpoint_type   = "Interface"
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.secretsmanager"
+  vpc_endpoint_type = "Interface"
 
-  subnet_ids          = aws_subnet.public[*].id
-  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
+  subnet_ids         = aws_subnet.public[*].id
+  security_group_ids = [aws_security_group.vpc_endpoint_sg.id]
 
   private_dns_enabled = true
 }
@@ -230,8 +209,8 @@ resource "aws_iam_role_policy" "secrets_access" {
           "kms:Decrypt"
         ]
         Resource = [
-          aws_secretsmanager_secret.auth0_client_secret.arn,
-          aws_secretsmanager_secret.database_url.arn
+          aws_secretsmanager_secret.auth0_client_secret_secret.arn,
+          aws_secretsmanager_secret.database_url_secret.arn
         ]
       }
     ]
@@ -252,8 +231,8 @@ resource "aws_iam_role_policy" "secrets_access_2" {
           "kms:Decrypt"
         ]
         Resource = [
-          aws_secretsmanager_secret.auth0_client_secret.arn,
-          aws_secretsmanager_secret.database_url.arn
+          aws_secretsmanager_secret.auth0_client_secret_secret.arn,
+          aws_secretsmanager_secret.database_url_secret.arn
         ]
       }
     ]
@@ -297,6 +276,30 @@ resource "aws_security_group" "ecs_tasks" {
   }
 }
 
+# RDS PostgreSQL Database
+resource "aws_db_subnet_group" "qa_db_subnet_group" {
+  name       = "qa-db-subnet-group"
+  subnet_ids = aws_subnet.public[*].id
+}
+
+resource "aws_db_instance" "qa_database" {
+  identifier           = "qa-backend-db"
+  allocated_storage    = 20
+  storage_type         = "gp2"
+  engine               = "postgres"
+  engine_version       = "16.1"
+  instance_class       = "db.t3.micro"
+  db_name              = "myapp"
+  username             = var.db_username
+  password             = var.db_password
+  parameter_group_name = "default.postgres16"
+  skip_final_snapshot  = true
+
+  db_subnet_group_name   = aws_db_subnet_group.qa_db_subnet_group.name
+  vpc_security_group_ids = [aws_security_group.ecs_tasks.id]
+}
+
+
 # Task Definition
 resource "aws_ecs_task_definition" "backend_task" {
   family                   = "qa-backend-task"
@@ -316,6 +319,7 @@ resource "aws_ecs_task_definition" "backend_task" {
     }]
     environment = [
       { name = "ENV", value = "qa" },
+            # { name = "DATABASE_URL", value = "postgres://${var.db_username}:${var.db_password}@${aws_db_instance.qa_database.endpoint}/myapp" },
       { name = "AUTH0_DOMAIN", value = var.auth0_domain },
       { name = "AUTH0_CLIENT_ID", value = var.auth0_client_id }
     ]
@@ -323,11 +327,11 @@ resource "aws_ecs_task_definition" "backend_task" {
     secrets = [
       {
         name      = "AUTH0_CLIENT_SECRET"
-        valueFrom = "${aws_secretsmanager_secret.auth0_client_secret.arn}:AUTH0_CLIENT_SECRET::"
+        valueFrom = "${aws_secretsmanager_secret.auth0_client_secret_secret.arn}:AUTH0_CLIENT_SECRET::"
       },
       {
         name      = "DATABASE_URL"
-        valueFrom = "${aws_secretsmanager_secret.database_url.arn}:DATABASE_URL::"
+        valueFrom = "${aws_secretsmanager_secret.database_url_secret.arn}:DATABASE_URL::"
       }
     ]
   }])
@@ -357,12 +361,12 @@ resource "aws_ecs_service" "backend_service" {
 }
 
 # Secrets Management
-resource "aws_secretsmanager_secret" "auth0_client_secret" {
-  name = "qa-auth0-client-secret"
+resource "aws_secretsmanager_secret" "auth0_client_secret_secret" {
+  name = "qa-auth0-client-secret-secret"
 }
 
-resource "aws_secretsmanager_secret" "database_url" {
-  name = "qa-database-url"
+resource "aws_secretsmanager_secret" "database_url_secret" {
+  name = "qa-database-url-secret"
 }
 
 # IAM Roles for ECS

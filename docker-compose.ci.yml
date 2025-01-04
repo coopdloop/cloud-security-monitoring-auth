@@ -4,4 +4,6 @@ services:
   app:
     environment:
       - AUTH0_DOMAIN=${AUTH0_DOMAIN}
-      - AUTH0_CLIENT_ID=${CI_AUTH0_CLIENT_ID}
+      - AUTH0_CLIENT_ID=${AUTH0_CLIENT_ID}
+    ports:
+      - "3000:3000"
