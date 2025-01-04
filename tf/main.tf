@@ -129,10 +129,21 @@ resource "auth0_trigger_actions" "login_flow" {
 
 # VPC Configuration
 resource "aws_vpc" "main" {
-  cidr_block = var.vpc_cidr
+  cidr_block           = var.vpc_cidr
+  enable_dns_support   = true
+  enable_dns_hostnames = true
 
   tags = {
     Name = "${var.project_name}-${var.environment}-vpc"
+  }
+}
+
+# Internet Gateway
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "qa-backend-igw"
   }
 }
 
@@ -143,10 +154,90 @@ resource "aws_subnet" "public" {
   cidr_block        = cidrsubnet(var.vpc_cidr, 8, count.index)
   availability_zone = var.availability_zones[count.index]
 
+  map_public_ip_on_launch = true
+
   tags = {
     Name = "${var.project_name}-${var.environment}-subnet-${count.index}"
   }
 }
+
+# Route Table
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name = "qa-public-route-table"
+  }
+}
+
+# Route Table Association
+resource "aws_route_table_association" "public" {
+  count          = 2
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+# VPC Endpoints for Secrets Manager
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${var.aws_region}.secretsmanager"
+  vpc_endpoint_type   = "Interface"
+
+  subnet_ids          = aws_subnet.public[*].id
+  security_group_ids  = [aws_security_group.vpc_endpoint_sg.id]
+
+  private_dns_enabled = true
+}
+
+# Security Group for VPC Endpoints
+resource "aws_security_group" "vpc_endpoint_sg" {
+  name        = "secretsmanager-endpoint-sg"
+  description = "Security group for Secrets Manager VPC Endpoint"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# ECS Task IAM Role Updates
+resource "aws_iam_role_policy" "secrets_access" {
+  name = "ecs-secrets-access"
+  role = aws_iam_role.ecs_task_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "kms:Decrypt"
+        ]
+        Resource = [
+          aws_secretsmanager_secret.auth0_client_secret.arn,
+          aws_secretsmanager_secret.database_url.arn
+        ]
+      }
+    ]
+  })
+}
+
 
 # ECS Cluster
 resource "aws_ecs_cluster" "qa_backend_cluster" {
@@ -206,14 +297,15 @@ resource "aws_ecs_task_definition" "backend_task" {
       { name = "AUTH0_DOMAIN", value = var.auth0_domain },
       { name = "AUTH0_CLIENT_ID", value = var.auth0_client_id }
     ]
+    # Secrets configuration
     secrets = [
       {
         name      = "AUTH0_CLIENT_SECRET"
-        valueFrom = aws_secretsmanager_secret.auth0_client_secret.arn
+        valueFrom = "${aws_secretsmanager_secret.auth0_client_secret.arn}:AUTH0_CLIENT_SECRET::"
       },
       {
         name      = "DATABASE_URL"
-        valueFrom = aws_secretsmanager_secret.database_url.arn
+        valueFrom = "${aws_secretsmanager_secret.database_url.arn}:DATABASE_URL::"
       }
     ]
   }])
