@@ -329,10 +329,10 @@ resource "aws_ecs_task_definition" "backend_task" {
         name      = "AUTH0_CLIENT_SECRET"
         valueFrom = "${aws_secretsmanager_secret.auth0_client_secret_secret.arn}:AUTH0_CLIENT_SECRET::"
       },
-            # {
-            #   name      = "DB_CREDENTIALS"
-            #   valueFrom = "${aws_secretsmanager_secret.database_url_secret.arn}:DB_CREDENTIALS::"
-            # }
+      {
+        name      = "DB_CREDENTIALS"
+        valueFrom = "${aws_secretsmanager_secret.database_url_secret.arn}:DB_CREDENTIALS::"
+      }
     ]
   }])
 }
@@ -367,6 +367,22 @@ resource "aws_secretsmanager_secret" "auth0_client_secret_secret" {
 
 resource "aws_secretsmanager_secret" "database_url_secret" {
   name = "qa-database-url-secret"
+}
+
+# Secret version for Auth0 Client Secret
+resource "aws_secretsmanager_secret_version" "auth0_client_secret" {
+  secret_id = aws_secretsmanager_secret.auth0_client_secret_secret.id
+  secret_string = jsonencode({
+    AUTH0_CLIENT_SECRET = var.auth0_client_secret
+  })
+}
+
+# Secret version for Database Credentials
+resource "aws_secretsmanager_secret_version" "database_credentials" {
+  secret_id = aws_secretsmanager_secret.database_url_secret.id
+  secret_string = jsonencode({
+    DB_CREDENTIALS = var.db_password  # or whatever credential you want to store
+  })
 }
 
 # IAM Roles for ECS

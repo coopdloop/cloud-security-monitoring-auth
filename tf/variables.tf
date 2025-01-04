@@ -82,6 +82,11 @@ variable "auth0_client_id" {
   type        = string
 }
 
+variable "auth0_client_secret" {
+  description = "client secret"
+  type        = string
+}
+
 # Subnet Configuration
 variable "availability_zones" {
   description = "List of availability zones"
