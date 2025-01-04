@@ -238,6 +238,28 @@ resource "aws_iam_role_policy" "secrets_access" {
   })
 }
 
+resource "aws_iam_role_policy" "secrets_access_2" {
+  name = "ecs-secrets-access"
+  role = aws_iam_role.ecs_execution_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "kms:Decrypt"
+        ]
+        Resource = [
+          aws_secretsmanager_secret.auth0_client_secret.arn,
+          aws_secretsmanager_secret.database_url.arn
+        ]
+      }
+    ]
+  })
+}
+
 
 # ECS Cluster
 resource "aws_ecs_cluster" "qa_backend_cluster" {
